@@ -4,8 +4,9 @@ This document describes the complete database structure for the marketplace appl
 
 ## Overview
 
-The marketplace database consists of 9 main tables and 3 pivot tables that manage:
+The marketplace database consists of 13 main tables and 6 pivot tables that manage:
 - **Users and Brands**: Multi-tenant system where users own brands
+- **Roles and Permissions**: Fine-grained access control using Spatie Laravel Permission
 - **Product Catalog**: Collections → Categories → Products → Variants
 - **Product Options**: Configurable attributes for variants (Color, Size, etc.)
 - **Media Management**: Images linked to products and variants
@@ -13,6 +14,9 @@ The marketplace database consists of 9 main tables and 3 pivot tables that manag
 ## Entity Relationship Summary
 
 ```
+users (N) ←→ (N) roles [via model_has_roles]
+users (N) ←→ (N) permissions [via model_has_permissions]
+roles (N) ←→ (N) permissions [via role_has_permissions]
 users (1) ─→ (N) brands
 brands (N) ←→ (N) categories [via brand_category]
 collections (N) ←→ (N) categories [via category_collection]
@@ -356,6 +360,104 @@ products (N) ←→ (N) images [via product_images]
 
 ---
 
+### 10. permissions
+
+**Purpose**: Stores permission definitions for access control (using Spatie Laravel Permission).
+
+**Fields**:
+- `id` bigint unsigned PRIMARY KEY
+- `name` varchar(255) NOT NULL - Permission name (e.g., 'create-product', 'edit-brand')
+- `guard_name` varchar(255) NOT NULL - Guard name (typically 'web')
+- `created_at` timestamp NULL
+- `updated_at` timestamp NULL
+
+**Indexes**:
+- PRIMARY KEY (`id`)
+- UNIQUE (`name`, `guard_name`)
+
+**Relationships**:
+- belongsToMany: Role (via role_has_permissions)
+- morphedByMany: User (via model_has_permissions)
+
+**Business Rules**:
+- Permission names should follow pattern: `{action}-{resource}` (e.g., 'create-product', 'view-brands')
+- Permissions are typically assigned to roles, not directly to users
+- Guard name allows different permission sets for different auth guards
+
+---
+
+### 11. roles
+
+**Purpose**: Stores role definitions for grouping permissions (using Spatie Laravel Permission).
+
+**Fields**:
+- `id` bigint unsigned PRIMARY KEY
+- `name` varchar(255) NOT NULL - Role name (e.g., 'admin', 'brand-owner', 'customer')
+- `guard_name` varchar(255) NOT NULL - Guard name (typically 'web')
+- `created_at` timestamp NULL
+- `updated_at` timestamp NULL
+
+**Indexes**:
+- PRIMARY KEY (`id`)
+- UNIQUE (`name`, `guard_name`)
+
+**Relationships**:
+- belongsToMany: Permission (via role_has_permissions)
+- morphedByMany: User (via model_has_roles)
+
+**Business Rules**:
+- Users can have multiple roles simultaneously
+- Roles group related permissions
+- Default roles: `admin`, `brand-owner`, `customer`, `moderator`
+
+---
+
+### 12. model_has_permissions (Polymorphic Pivot)
+
+**Purpose**: Direct permission assignments to models (typically used for exceptions).
+
+**Fields**:
+- `permission_id` bigint unsigned NOT NULL → permissions.id
+- `model_type` varchar(255) NOT NULL - Polymorphic type (e.g., 'App\Models\User')
+- `model_id` bigint unsigned NOT NULL - Model ID
+
+**Indexes**:
+- PRIMARY KEY (`permission_id`, `model_id`, `model_type`)
+- INDEX (`model_id`, `model_type`)
+
+**Foreign Keys**:
+- `permission_id` REFERENCES `permissions(id)` ON DELETE CASCADE
+
+**Business Rules**:
+- Rarely used - permissions usually assigned via roles
+- Use for one-off permission grants
+- Model can be any Eloquent model with HasRoles trait
+
+---
+
+### 13. model_has_roles (Polymorphic Pivot)
+
+**Purpose**: Assigns roles to models (users).
+
+**Fields**:
+- `role_id` bigint unsigned NOT NULL → roles.id
+- `model_type` varchar(255) NOT NULL - Polymorphic type (e.g., 'App\Models\User')
+- `model_id` bigint unsigned NOT NULL - Model ID
+
+**Indexes**:
+- PRIMARY KEY (`role_id`, `model_id`, `model_type`)
+- INDEX (`model_id`, `model_type`)
+
+**Foreign Keys**:
+- `role_id` REFERENCES `roles(id)` ON DELETE CASCADE
+
+**Business Rules**:
+- Users can have multiple roles
+- Deleting role removes all assignments
+- Model can be any Eloquent model with HasRoles trait
+
+---
+
 ## Pivot Tables (Many-to-Many)
 
 ### category_collection
@@ -567,4 +669,76 @@ Brand::find($brandId)
 ### Check if brand can create product in category
 ```php
 $brand->categories()->where('category_id', $categoryId)->exists();
+```
+
+### Roles and Permissions
+
+```php
+// Assign role to user
+$user->assignRole('brand-owner');
+
+// Assign multiple roles
+$user->assignRole(['brand-owner', 'customer']);
+
+// Check if user has role
+if ($user->hasRole('admin')) {
+    // User is admin
+}
+
+// Check if user has any of the roles
+if ($user->hasAnyRole(['admin', 'moderator'])) {
+    // User is admin or moderator
+}
+
+// Check if user has all roles
+if ($user->hasAllRoles(['brand-owner', 'customer'])) {
+    // User has both roles
+}
+
+// Check permission
+if ($user->can('create-product')) {
+    // User can create products
+}
+
+// Check multiple permissions
+if ($user->hasAllPermissions(['create-product', 'edit-product'])) {
+    // User has both permissions
+}
+
+// Give permission directly to user (rare)
+$user->givePermissionTo('delete-brand');
+
+// Remove role from user
+$user->removeRole('customer');
+
+// Get user's permissions
+$permissions = $user->getAllPermissions();
+
+// Get user's roles
+$roles = $user->getRoleNames();
+
+// Sync roles (replace all current roles)
+$user->syncRoles(['brand-owner']);
+
+// In Blade templates
+@role('admin')
+    <a href="/admin">Admin Panel</a>
+@endrole
+
+@can('edit-product')
+    <button>Edit Product</button>
+@endcan
+
+// In controllers with middleware
+Route::middleware(['role:admin'])->group(function () {
+    // Admin only routes
+});
+
+Route::middleware(['permission:create-product'])->post('/products', [ProductController::class, 'store']);
+
+// Get users with specific role
+$admins = User::role('admin')->get();
+
+// Get users with specific permission
+$editors = User::permission('edit-product')->get();
 ```

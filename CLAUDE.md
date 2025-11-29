@@ -304,6 +304,7 @@ When working on complex features or issues, use the `.ai/tasks/` directory to tr
 - **Keep tasks focused**: One task file per feature/issue
 - **Reference in commits**: Mention task file in commit messages for traceability
 - **Language**: All task descriptions, todos, and notes must be written in Russian
+- **No automatic test creation**: When creating and executing tasks, DO NOT create tests unless explicitly requested by the user
 
 ### Task File Naming
 
