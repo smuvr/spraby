@@ -272,6 +272,70 @@ Uses Laravel Breeze with Inertia React stack:
 4. **Database Changes**: Create migrations, run `php artisan migrate`
 5. **Testing**: Write tests in `tests/`, run with `php artisan test`
 
+## Task Management
+
+When working on complex features or issues, use the `.ai/tasks/` directory to track progress:
+
+### Creating Tasks
+
+1. **Create a task file**: `.ai/tasks/task-name.md`
+2. **Language**: Write all task files in Russian (все файлы задач пишутся на русском языке)
+3. **Structure the task file**:
+   ```markdown
+   # Название задачи
+
+   ## Описание
+   Краткое описание того, что нужно сделать.
+
+   ## Список задач
+
+   - [ ] Первая подзадача
+   - [ ] Вторая подзадача
+   - [ ] Третья подзадача
+
+   ## Заметки
+   Дополнительный контекст, принятые решения или важная информация.
+   ```
+
+### Working with Tasks
+
+- **Mark completed items**: Change `- [ ]` to `- [x]` when a todo item is done
+- **Update as you work**: Add new todos if you discover additional work needed
+- **Keep tasks focused**: One task file per feature/issue
+- **Reference in commits**: Mention task file in commit messages for traceability
+- **Language**: All task descriptions, todos, and notes must be written in Russian
+
+### Task File Naming
+
+Use descriptive kebab-case names:
+- `create-marketplace-database-structure.md`
+- `implement-variant-creation-ui.md`
+- `fix-image-upload-bug.md`
+
+### Example Task File
+
+```markdown
+# Создание вариантов товаров
+
+## Описание
+Добавить UI и бэкенд логику для создания вариантов товаров с настраиваемыми опциями.
+
+## Список задач
+
+- [x] Создать миграцию для таблицы variants
+- [x] Создать модель Variant с отношениями
+- [ ] Построить компонент формы создания варианта
+- [ ] Добавить валидацию уникальности SKU
+- [ ] Реализовать UI выбора значений опций
+- [ ] Добавить тесты для создания вариантов
+- [ ] Обновить страницу деталей товара для отображения вариантов
+
+## Заметки
+- Варианты должны иметь хотя бы одно значение опции
+- SKU должен быть глобально уникальным для всех товаров
+- Требуется вариант по умолчанию для каждого товара
+```
+
 ## Important Notes
 
 - **Route Helpers**: Use Ziggy for type-safe routing in React: `route('route.name', params)`
